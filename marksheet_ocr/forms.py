@@ -12,8 +12,7 @@ class MarksheetUploadForm(forms.ModelForm):
             'image': forms.FileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*',
-                'id': 'marksheet-upload',
-                'multiple': True
+                'id': 'marksheet-upload'
             })
         }
     

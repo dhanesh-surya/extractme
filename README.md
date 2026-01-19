@@ -181,6 +181,28 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
+## Deployment
+
+### Deploy to Render.com
+
+This application is ready for deployment on Render.com with PostgreSQL database support.
+
+📘 **See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for complete deployment instructions**
+
+Quick deployment steps:
+1. Push your code to GitHub
+2. Create a new Blueprint on Render.com
+3. Connect your repository (Render will auto-detect `render.yaml`)
+4. Set your `GEMINI_API_KEY` environment variable
+5. Deploy!
+
+The application automatically uses:
+- **PostgreSQL** database on Render (via `DATABASE_URL`)
+- **SQLite** for local development
+- **WhiteNoise** for static file serving
+- **Gunicorn** as the production server
+
+
 ## Contributing
 
 Feel free to submit issues and enhancement requests!
