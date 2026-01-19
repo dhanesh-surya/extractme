@@ -1,0 +1,178 @@
+"""
+CSV and Excel export service for marksheet data
+"""
+import pandas as pd
+from io import BytesIO
+from openpyxl.utils import get_column_letter
+
+
+class CSVExporter:
+    """Export student marksheet data to CSV and Excel formats"""
+    
+    def export_students_to_csv(self, students):
+        """
+        Export student data to CSV format
+        
+        Args:
+            students: QuerySet or list of Student objects
+            
+        Returns:
+            BytesIO object containing CSV data
+        """
+        df = self._prepare_summary_dataframe(students)
+        
+        # Export to CSV
+        output = BytesIO()
+        df.to_csv(output, index=False, encoding='utf-8-sig')  # utf-8-sig for Excel compatibility
+        output.seek(0)
+        
+        return output
+    
+    def export_students_to_excel(self, students):
+        """
+        Export student data to Excel format
+        
+        Args:
+            students: QuerySet or list of Student objects
+            
+        Returns:
+            BytesIO object containing Excel data
+        """
+        df = self._prepare_summary_dataframe(students)
+        
+        # Export to Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Marksheet Summary')
+            
+            # Auto-adjust column widths
+            worksheet = writer.sheets['Marksheet Summary']
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).apply(len).max(),
+                    len(str(col))
+                ) + 2
+                # Use get_column_letter for proper column naming (A, B, ..., Z, AA, AB, ...)
+                column_letter = get_column_letter(idx + 1)
+                worksheet.column_dimensions[column_letter].width = min(max_length, 50)
+        
+        output.seek(0)
+        return output
+    
+    def export_detailed_csv(self, students):
+        """
+        Export detailed CSV with one row per student per subject
+        
+        Args:
+            students: QuerySet or list of Student objects
+            
+        Returns:
+            BytesIO object containing CSV data
+        """
+        df = self._prepare_detailed_dataframe(students)
+        
+        # Export to CSV
+        output = BytesIO()
+        df.to_csv(output, index=False, encoding='utf-8-sig')
+        output.seek(0)
+        
+        return output
+    
+    def export_detailed_excel(self, students):
+        """
+        Export detailed Excel with one row per student per subject
+        
+        Args:
+            students: QuerySet or list of Student objects
+            
+        Returns:
+            BytesIO object containing Excel data
+        """
+        df = self._prepare_detailed_dataframe(students)
+        
+        # Export to Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Detailed Marks')
+            
+            # Auto-adjust column widths
+            worksheet = writer.sheets['Detailed Marks']
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).apply(len).max(),
+                    len(str(col))
+                ) + 2
+                # Use get_column_letter for proper column naming (A, B, ..., Z, AA, AB, ...)
+                column_letter = get_column_letter(idx + 1)
+                worksheet.column_dimensions[column_letter].width = min(max_length, 30)
+        
+        output.seek(0)
+        return output
+    
+    def _prepare_summary_dataframe(self, students):
+        """Prepare summary DataFrame with one row per student"""
+        rows = []
+        
+        for student in students:
+            row = {
+                'Roll Number': student.roll_number,
+                'Student Name': student.name,
+                'Father Name': student.father_name,
+            }
+            
+            # Add subject-wise marks
+            marks = student.marks.all().select_related('subject')
+            
+            for mark in marks:
+                subject_prefix = f"{mark.subject.code} - {mark.subject.name}"
+                
+                # Theory marks
+                if mark.theory_ese is not None or mark.theory_internal is not None:
+                    row[f'{subject_prefix} - Theory ESE'] = mark.theory_ese if mark.theory_ese is not None else ''
+                    row[f'{subject_prefix} - Theory Internal'] = mark.theory_internal if mark.theory_internal is not None else ''
+                    row[f'{subject_prefix} - Theory Total'] = mark.get_theory_total()
+                
+                # Practical marks
+                if mark.practical_marks is not None or mark.practical_internal is not None:
+                    row[f'{subject_prefix} - Practical'] = mark.practical_marks if mark.practical_marks is not None else ''
+                    row[f'{subject_prefix} - Practical Internal'] = mark.practical_internal if mark.practical_internal is not None else ''
+                    row[f'{subject_prefix} - Practical Total'] = mark.get_practical_total()
+                
+                # Subject total
+                row[f'{subject_prefix} - Total'] = mark.get_total_marks()
+            
+            # Add totals
+            row['Total Marks'] = student.get_total_marks()
+            row['Percentage'] = student.get_percentage()
+            row['Result'] = student.get_result_status()
+            
+            rows.append(row)
+        
+        return pd.DataFrame(rows)
+    
+    def _prepare_detailed_dataframe(self, students):
+        """Prepare detailed DataFrame with one row per student per subject"""
+        rows = []
+        
+        for student in students:
+            marks = student.marks.all().select_related('subject')
+            
+            for mark in marks:
+                row = {
+                    'Roll Number': student.roll_number,
+                    'Student Name': student.name,
+                    'Father Name': student.father_name,
+                    'Subject Code': mark.subject.code,
+                    'Subject Name': mark.subject.name,
+                    'Theory ESE': mark.theory_ese if mark.theory_ese is not None else '',
+                    'Theory Internal': mark.theory_internal if mark.theory_internal is not None else '',
+                    'Theory Total': mark.get_theory_total(),
+                    'Practical': mark.practical_marks if mark.practical_marks is not None else '',
+                    'Practical Internal': mark.practical_internal if mark.practical_internal is not None else '',
+                    'Practical Total': mark.get_practical_total(),
+                    'Subject Total': mark.get_total_marks(),
+                    'Status': 'FAIL' if mark.is_failed() else 'PASS'
+                }
+                rows.append(row)
+        
+        return pd.DataFrame(rows)

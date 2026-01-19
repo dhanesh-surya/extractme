@@ -1,0 +1,177 @@
+{% extends 'marksheet_ocr/base.html' %}
+
+{% block title %}Results - Marksheet OCR{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-11">
+            <!-- Header -->
+            <div class="glass-card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Extraction Completed
+                            </h2>
+                            <p class="text-muted mb-0">
+                                Uploaded: {{ upload.uploaded_at|date:"F d, Y H:i" }}
+                            </p>
+                        </div>
+                        <div>
+                            <!-- CSV Downloads -->
+                            <div class="btn-group me-2" role="group">
+                                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-file-csv me-2"></i>
+                                    CSV
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'download_csv' upload.id %}">
+                                            <i class="fas fa-download me-2"></i>Summary CSV
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'download_detailed_csv' upload.id %}">
+                                            <i class="fas fa-table me-2"></i>Detailed CSV
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Excel Downloads -->
+                            <div class="btn-group me-2" role="group">
+                                <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-file-excel me-2"></i>
+                                    Excel
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'download_excel' upload.id %}">
+                                            <i class="fas fa-download me-2"></i>Summary Excel
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'download_detailed_excel' upload.id %}">
+                                            <i class="fas fa-table me-2"></i>Detailed Excel
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <a href="{% url 'upload_marksheet' %}" class="btn btn-primary">
+                                <i class="fas fa-upload me-2"></i>
+                                Upload New
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Data -->
+            {% for student in students %}
+            <div class="glass-card mb-4">
+                <div class="card-body">
+                    <!-- Student Header -->
+                    <div class="student-header mb-4">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h3 class="mb-2">
+                                    <i class="fas fa-user-graduate me-2"></i>
+                                    {{ student.name }}
+                                </h3>
+                                <div class="student-info">
+                                    <span class="info-badge">
+                                        <i class="fas fa-id-card me-1"></i>
+                                        Roll No: <strong>{{ student.roll_number }}</strong>
+                                    </span>
+                                    {% if student.father_name %}
+                                    <span class="info-badge">
+                                        <i class="fas fa-user me-1"></i>
+                                        Father: <strong>{{ student.father_name }}</strong>
+                                    </span>
+                                    {% endif %}
+                                    {% if student.enrollment_number %}
+                                    <span class="info-badge">
+                                        <i class="fas fa-hashtag me-1"></i>
+                                        Enrollment: <strong>{{ student.enrollment_number }}</strong>
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="result-summary">
+                                    <div class="percentage-badge">
+                                        {{ student.get_percentage }}%
+                                    </div>
+                                    <div class="result-badge result-{{ student.get_result_status|lower|cut:' ' }}">
+                                        {{ student.get_result_status }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Marks Table -->
+                    <div class="table-responsive">
+                        <table class="table marks-table">
+                            <thead>
+                                <tr>
+                                    <th>Subject Code</th>
+                                    <th>Subject Name</th>
+                                    <th class="text-center">Theory ESE</th>
+                                    <th class="text-center">Theory Int.</th>
+                                    <th class="text-center">Theory Total</th>
+                                    <th class="text-center">Practical</th>
+                                    <th class="text-center">Practical Int.</th>
+                                    <th class="text-center">Practical Total</th>
+                                    <th class="text-center">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mark in student.marks.all %}
+                                <tr class="{% if mark.is_failed %}table-danger{% endif %}">
+                                    <td><strong>{{ mark.subject.code }}</strong></td>
+                                    <td>{{ mark.subject.name }}</td>
+                                    <td class="text-center">{{ mark.theory_ese|default:"-" }}</td>
+                                    <td class="text-center">{{ mark.theory_internal|default:"-" }}</td>
+                                    <td class="text-center"><strong>{{ mark.get_theory_total }}</strong></td>
+                                    <td class="text-center">{{ mark.practical_marks|default:"-" }}</td>
+                                    <td class="text-center">{{ mark.practical_internal|default:"-" }}</td>
+                                    <td class="text-center"><strong>{{ mark.get_practical_total }}</strong></td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ mark.get_total_marks }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-active">
+                                    <td colspan="8" class="text-end"><strong>Grand Total:</strong></td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success fs-6">{{ student.get_total_marks }}</span>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="glass-card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
+                    <h4>No students found</h4>
+                    <p class="text-muted">The marksheet processing did not extract any student data.</p>
+                    <a href="{% url 'upload_marksheet' %}" class="btn btn-primary mt-3">
+                        <i class="fas fa-upload me-2"></i>
+                        Try Another Upload
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
