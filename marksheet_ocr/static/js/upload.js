@@ -30,15 +30,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            fileInput.files = files;
-            handleFileSelect(files[0]);
+            fileInput.files = files; // Assign dropped files to input
+            handleFilesSelect(files);
         }
     });
 
     // File input change
     fileInput.addEventListener('change', function (e) {
         if (this.files.length > 0) {
-            handleFileSelect(this.files[0]);
+            handleFilesSelect(this.files);
         }
     });
 
@@ -51,34 +51,62 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Handle file selection
-    function handleFileSelect(file) {
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/bmp', 'image/tiff'];
-        if (!validTypes.includes(file.type)) {
-            alert('Please select a valid image file (JPEG, PNG, BMP, or TIFF)');
+    // Handle files selection
+    function handleFilesSelect(files) {
+        // Validate file count
+        if (files.length > 5) {
+            alert('Maximum 5 files allowed per upload.');
             fileInput.value = '';
+            fileInfo.style.display = 'none';
+            imagePreview.style.display = 'none';
             return;
         }
 
-        // Validate file size (10MB max)
-        if (file.size > 10 * 1024 * 1024) {
-            alert('File size must be less than 10MB');
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/bmp', 'image/tiff'];
+        let validFiles = true;
+        let fileNames = [];
+
+        // Validate each file
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            if (!validTypes.includes(file.type)) {
+                alert(`File "${file.name}" is not a valid image. Please select JPEG, PNG, BMP, or TIFF.`);
+                validFiles = false;
+                break;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                alert(`File "${file.name}" exceeds 10MB limit.`);
+                validFiles = false;
+                break;
+            }
+
+            fileNames.push(file.name);
+        }
+
+        if (!validFiles) {
             fileInput.value = '';
             return;
         }
 
         // Show file info
-        fileName.textContent = file.name;
-        fileInfo.style.display = 'inline-block';
+        if (files.length === 1) {
+            fileName.textContent = files[0].name;
+            // Show image preview for single file
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                previewImg.src = e.target.result;
+                imagePreview.style.display = 'block';
+            };
+            reader.readAsDataURL(files[0]);
+        } else {
+            fileName.textContent = `${files.length} files selected: ${fileNames.join(', ')}`;
+            // Hide preview for multiple files to save space
+            imagePreview.style.display = 'none';
+        }
 
-        // Show image preview
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            previewImg.src = e.target.result;
-            imagePreview.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+        fileInfo.style.display = 'inline-block';
     }
 
     // Form submission
@@ -86,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
         uploadForm.addEventListener('submit', function (e) {
             if (!fileInput.files || fileInput.files.length === 0) {
                 e.preventDefault();
-                alert('Please select a marksheet image to upload');
+                alert('Please select marksheet image(s) to upload');
                 return;
             }
 
