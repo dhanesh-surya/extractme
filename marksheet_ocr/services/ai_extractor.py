@@ -15,10 +15,11 @@ class AIExtractor:
         # Get API key from Django settings
         api_key = getattr(settings, 'GEMINI_API_KEY', None) or os.getenv('GEMINI_API_KEY')
         
-        if not api_key or api_key == 'your-gemini-api-key-here':
+        if not api_key or api_key.strip() == '' or api_key == 'your-api-key-here':
             raise ValueError(
-                "GEMINI_API_KEY not set in .env file. "
-                "Please get your API key from https://makersuite.google.com/app/apikey"
+                "GEMINI_API_KEY not set. "
+                "Please set it in your environment variables or Render dashboard. "
+                "Get your API key from https://makersuite.google.com/app/apikey"
             )
         genai.configure(api_key=api_key)
         
@@ -116,11 +117,20 @@ class AIExtractor:
             - Return ONLY valid JSON, no additional text
             """
             
-            # Generate response
-            response = self.model.generate_content([prompt, image])
+            # Generate response with timeout handling
+            print("Calling Gemini API for text extraction...")
+            response = self.model.generate_content(
+                [prompt, image],
+                request_options={'timeout': 120}  # 2 minute timeout
+            )
+            
+            # Check if response has text
+            if not response or not hasattr(response, 'text'):
+                raise ValueError("Gemini API returned empty response. Please check your API key and quota.")
             
             # Parse JSON response
             response_text = response.text.strip()
+            print(f"Received response from Gemini API (length: {len(response_text)})")
             
             # Remove markdown code blocks if present
             if response_text.startswith('```json'):
@@ -134,12 +144,18 @@ class AIExtractor:
             
             # Parse JSON
             students_data = json.loads(response_text)
+            print(f"Successfully extracted data for {len(students_data)} student(s)")
             
             return students_data
             
         except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse AI response as JSON: {e}\nResponse: {response_text}")
+            print(f"JSON parsing error: {e}")
+            print(f"Response text: {response_text[:500]}")
+            raise ValueError(f"Failed to parse AI response as JSON: {e}")
         except Exception as e:
+            print(f"AI extraction error: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             raise Exception(f"Error extracting data with AI: {str(e)}")
     
     def validate_student_data(self, student_data):
