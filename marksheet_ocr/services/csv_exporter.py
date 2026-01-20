@@ -110,40 +110,51 @@ class CSVExporter:
         return output
     
     def _prepare_summary_dataframe(self, students):
-        """Prepare summary DataFrame with one row per student"""
+        """Prepare summary DataFrame with one row per student - CLEAN FORMAT"""
         rows = []
         
         for student in students:
+            # Start with basic student info
             row = {
                 'Roll Number': student.roll_number,
                 'Student Name': student.name,
-                'Father Name': student.father_name,
+                'Father Name': student.father_name if student.father_name else '',
             }
             
-            # Add subject-wise marks
-            marks = student.marks.all().select_related('subject')
+            # Add enrollment number if available
+            if student.enrollment_number:
+                row['Enrollment Number'] = student.enrollment_number
             
+            # Get all marks for this student
+            marks = student.marks.all().select_related('subject').order_by('subject__code')
+            
+            # Group marks by subject for cleaner display
             for mark in marks:
-                subject_prefix = f"{mark.subject.code} - {mark.subject.name}"
+                subject_code = mark.subject.code
+                subject_name = mark.subject.name
                 
-                # Theory marks
+                # Add subject name as context (only once per subject)
+                row[f'{subject_code} - Subject'] = subject_name
+                
+                # Add marks in a clean format
+                # Theory section
                 if mark.theory_ese is not None or mark.theory_internal is not None:
-                    row[f'{subject_prefix} - Theory ESE'] = mark.theory_ese if mark.theory_ese is not None else ''
-                    row[f'{subject_prefix} - Theory Internal'] = mark.theory_internal if mark.theory_internal is not None else ''
-                    row[f'{subject_prefix} - Theory Total'] = mark.get_theory_total()
+                    row[f'{subject_code} - Theory ESE'] = mark.theory_ese if mark.theory_ese is not None else 0
+                    row[f'{subject_code} - Theory Internal'] = mark.theory_internal if mark.theory_internal is not None else 0
+                    row[f'{subject_code} - Theory Total'] = mark.get_theory_total()
                 
-                # Practical marks
+                # Practical section
                 if mark.practical_marks is not None or mark.practical_internal is not None:
-                    row[f'{subject_prefix} - Practical'] = mark.practical_marks if mark.practical_marks is not None else ''
-                    row[f'{subject_prefix} - Practical Internal'] = mark.practical_internal if mark.practical_internal is not None else ''
-                    row[f'{subject_prefix} - Practical Total'] = mark.get_practical_total()
+                    row[f'{subject_code} - Practical'] = mark.practical_marks if mark.practical_marks is not None else 0
+                    row[f'{subject_code} - Practical Int'] = mark.practical_internal if mark.practical_internal is not None else 0
+                    row[f'{subject_code} - Practical Total'] = mark.get_practical_total()
                 
                 # Subject total
-                row[f'{subject_prefix} - Total'] = mark.get_total_marks()
+                row[f'{subject_code} - Total Marks'] = mark.get_total_marks()
             
-            # Add totals
-            row['Total Marks'] = student.get_total_marks()
-            row['Percentage'] = student.get_percentage()
+            # Add grand totals at the end
+            row['Grand Total'] = student.get_total_marks()
+            row['Percentage'] = f"{student.get_percentage():.2f}%"
             row['Result'] = student.get_result_status()
             
             rows.append(row)
@@ -151,28 +162,56 @@ class CSVExporter:
         return pd.DataFrame(rows)
     
     def _prepare_detailed_dataframe(self, students):
-        """Prepare detailed DataFrame with one row per student per subject"""
+        """Prepare detailed DataFrame with one row per student per subject - CLEAN FORMAT"""
         rows = []
         
         for student in students:
-            marks = student.marks.all().select_related('subject')
+            marks = student.marks.all().select_related('subject').order_by('subject__code')
             
             for mark in marks:
                 row = {
                     'Roll Number': student.roll_number,
                     'Student Name': student.name,
-                    'Father Name': student.father_name,
+                    'Father Name': student.father_name if student.father_name else '',
                     'Subject Code': mark.subject.code,
                     'Subject Name': mark.subject.name,
-                    'Theory ESE': mark.theory_ese if mark.theory_ese is not None else '',
-                    'Theory Internal': mark.theory_internal if mark.theory_internal is not None else '',
-                    'Theory Total': mark.get_theory_total(),
-                    'Practical': mark.practical_marks if mark.practical_marks is not None else '',
-                    'Practical Internal': mark.practical_internal if mark.practical_internal is not None else '',
-                    'Practical Total': mark.get_practical_total(),
-                    'Subject Total': mark.get_total_marks(),
-                    'Status': 'FAIL' if mark.is_failed() else 'PASS'
                 }
+                
+                # Only add theory marks if they exist
+                if mark.theory_ese is not None or mark.theory_internal is not None:
+                    row['Theory ESE'] = mark.theory_ese if mark.theory_ese is not None else 0
+                    row['Theory Internal'] = mark.theory_internal if mark.theory_internal is not None else 0
+                    row['Theory Total'] = mark.get_theory_total()
+                
+                # Only add practical marks if they exist
+                if mark.practical_marks is not None or mark.practical_internal is not None:
+                    row['Practical'] = mark.practical_marks if mark.practical_marks is not None else 0
+                    row['Practical Internal'] = mark.practical_internal if mark.practical_internal is not None else 0
+                    row['Practical Total'] = mark.get_practical_total()
+                
+                # Subject total and status
+                row['Subject Total'] = mark.get_total_marks()
+                row['Status'] = 'FAIL' if mark.is_failed() else 'PASS'
+                
                 rows.append(row)
+        
+        # Add summary row for each student
+        for student in students:
+            summary_row = {
+                'Roll Number': student.roll_number,
+                'Student Name': student.name,
+                'Father Name': student.father_name if student.father_name else '',
+                'Subject Code': '----',
+                'Subject Name': 'GRAND TOTAL',
+                'Theory ESE': '',
+                'Theory Internal': '',
+                'Theory Total': '',
+                'Practical': '',
+                'Practical Internal': '',
+                'Practical Total': '',
+                'Subject Total': student.get_total_marks(),
+                'Status': student.get_result_status()
+            }
+            rows.append(summary_row)
         
         return pd.DataFrame(rows)
