@@ -56,8 +56,20 @@ class AIExtractor:
             List of dictionaries containing student data
         """
         try:
-            # Load image
+            # Load image and resize if necessary to reduce memory usage and API latency
             image = Image.open(image_path)
+            
+            # Convert to RGB if necessary (e.g. for RGBA/P images)
+            if image.mode not in ('RGB', 'L'):
+                image = image.convert('RGB')
+                
+            # Resize if too large (max 1024px dimension) while maintaining aspect ratio
+            max_size = 1024
+            if max(image.size) > max_size:
+                print(f"Resizing image from {image.size} to max {max_size}px")
+                ratio = max_size / max(image.size)
+                new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
+                image = image.resize(new_size, Image.Resampling.LANCZOS)
             
             # Create detailed prompt for structured extraction
             prompt = """

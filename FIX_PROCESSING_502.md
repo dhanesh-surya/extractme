@@ -136,109 +136,28 @@ Update the processing to resize before sending to Gemini.
 
 ---
 
-## 🛠️ Step-by-Step Fix Process
+## ✅ FIXES APPLIED (READY TO DEPLOY):
 
-### Step 1: Check Render Logs (MOST IMPORTANT)
+### 1. Code Fixes Applied (Auto-Resizing)
+- **Modified `ai_extractor.py`:** Added logic to resize images to max 1024px.
+  - Prevents "Out of Memory" crashes.
+  - Reduces API processing time.
+  - Fixes payload size issues.
 
-**This will tell you the EXACT error:**
-
-1. Go to https://dashboard.render.com
-2. Click your service "extractme-1"
-3. Click **"Logs"** tab
-4. Click **"Service Logs"** (not Deploy Logs)
-5. Upload a marksheet and click Process
-6. Watch the logs in real-time
-7. Look for ERROR or Exception messages
-
-**Common error messages:**
-
-**If you see:**
-```
-GEMINI_API_KEY not set
-```
-→ **Fix:** Add API key in Environment tab
-
-**If you see:**
-```
-ValueError: Could not initialize any Gemini model
-```
-→ **Fix:** API key is invalid, get a new one
-
-**If you see:**
-```
-API quota exceeded
-```
-→ **Fix:** Wait 24 hours or upgrade API plan
-
-**If you see:**
-```
-Timeout
-```
-→ **Fix:** Increase gunicorn timeout (see Solution #2)
-
-**If you see:**
-```
-Out of memory
-```
-→ **Fix:** Use smaller images or upgrade plan
+### 2. Server Configuration Applied (Timeout)
+- **Modified `render.yaml`:**
+  - Increased timeout to `300` seconds (5 minutes).
+  - Set workers to `1` (optimization for Free Tier).
 
 ---
 
-### Step 2: Verify API Key is Valid
+## 🚀 HOW TO DEPLOY:
 
-**Test your API key locally:**
+**Check the file `DEPLOY_NOW.md` for simple copy-paste commands.**
 
-1. Download your code
-2. Create `.env` file with your actual API key:
-   ```
-   GEMINI_API_KEY=AIza...your-actual-key...
-   ```
-3. Run locally:
-   ```powershell
-   python manage.py runserver
-   ```
-4. Upload and process a test image
-5. If it works locally but not on Render → API key not set on Render
-
----
-
-### Step 3: Set Environment Variables
-
-**Go to Render dashboard → Your service → Environment**
-
-**Required variables:**
-
-| Variable | Value | How to Get |
-|----------|-------|------------|
-| `GEMINI_API_KEY` | AIza... | https://makersuite.google.com/app/apikey |
-| `DATABASE_URL` | postgresql://... | Auto-linked from database |
-| `SECRET_KEY` | (random string) | Auto-generated |
-| `DEBUG` | False | Already set |
-| `RENDER` | true | Already set |
-
-**Most important: GEMINI_API_KEY must be your real API key!**
-
----
-
-### Step 4: Update Start Command (If Timeout)
-
-If logs show timeout errors:
-
-1. Settings → Start Command
-2. Change to:
-   ```bash
-   gunicorn marksheet_project.wsgi:application --bind 0.0.0.0:$PORT --timeout 300
-   ```
-3. Save
-
----
-
-### Step 5: Test with Small Image
-
-Try uploading a small, clear marksheet image (< 1MB):
-- JPG or PNG format
-- Good resolution but not too large
-- Single student marksheet
+1. Commit and push the changes.
+2. Render will auto-deploy.
+3. **CRITICAL:** Ensure `GEMINI_API_KEY` is set in Render Dashboard > Environment.
 
 ---
 
